@@ -1,0 +1,106 @@
+<!-- professor.html -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="styles.css">
+    <title>Professor's Page</title>
+</head>
+<body>
+    <header>
+        <h1>Professor's Page</h1>
+    </header>
+    <main id="professorDataContainer">
+        <!-- Display answers and allow approval/decline -->
+    </main>
+    <footer>
+        <button id="startButton">Start</button>
+        <button id="clearDataButton">Clear Data</button>
+        <p>&copy; 2024 Your Teacher's Name</p>
+    </footer>
+    <script>
+        let isTimerActive = false;
+        const socket = new WebSocket('ws://localhost:3000');
+
+        function updateProfessorData(data) {
+            console.log('Received data for updateProfessorData:', data);
+
+            const professorDataContainer = document.getElementById('professorDataContainer');
+            professorDataContainer.innerHTML = '';
+
+            if (data.length === 0) {
+                professorDataContainer.innerHTML = '<p>No answers submitted yet.</p>';
+            } else {
+                const list = document.createElement('ul');
+                data.forEach((entry, index) => {
+                    // Exclude items with status 'Approved'
+                    if (entry.status !== 'Approved') {
+                        const listItem = document.createElement('li');
+                        listItem.innerHTML = `Kid: ${entry.kid}, Answer: ${entry.answer}, Status: ${entry.status}`;
+
+                        // Add "Approve" button for pending answers
+                        if (entry.status === 'Pending') {
+                            const approveButton = document.createElement('button');
+                            approveButton.textContent = 'Approve';
+                            approveButton.addEventListener('click', () => {
+                                // Send approval to the server
+                                socket.send(JSON.stringify({ type: 'approve', id: index }));
+                            });
+
+                            listItem.appendChild(approveButton);
+                        }
+
+                        list.appendChild(listItem);
+                    }
+                });
+                professorDataContainer.appendChild(list);
+            }
+        }
+
+        function updateButtonsStatus() {
+            const startButton = document.getElementById('startButton');
+            const clearDataButton = document.getElementById('clearDataButton');
+
+            startButton.disabled = isTimerActive;
+            clearDataButton.disabled = isTimerActive;
+        }
+
+        socket.addEventListener('open', (event) => {
+            console.log('WebSocket connection established');
+
+            // Request initial data when the WebSocket connection is open
+            socket.send(JSON.stringify({ type: 'update' }));
+        });
+
+        socket.addEventListener('message', event => {
+            const data = JSON.parse(event.data);
+
+            if (data.type === 'update' || data.type === 'submittedAnswer') {
+                // Display answers and allow approval/decline
+                updateProfessorData(data.data);
+            } else if (data.type === 'timerStatus') {
+                // Update session status and remaining time
+                isTimerActive = data.status === 'Live';
+                updateButtonsStatus();
+            }
+        });
+
+        // Start button event listener
+        const startButton = document.getElementById('startButton');
+        startButton.addEventListener('click', () => {
+            socket.send(JSON.stringify({ type: 'start' }));
+        });
+
+        // Clear data button event listener
+        const clearDataButton = document.getElementById('clearDataButton');
+        clearDataButton.addEventListener('click', () => {
+            socket.send(JSON.stringify({ type: 'clearData' }));
+        });
+
+        // Initial update of button status
+        updateButtonsStatus();
+    </script>
+</body>
+</html>

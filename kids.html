@@ -1,0 +1,100 @@
+<!-- kids.html -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="styles.css">
+    <title>Kids' Submission Page</title>
+</head>
+<body>
+    <header>
+        <h1>Kids' Submission Page</h1>
+    </header>
+    <main>
+        <!-- Form to submit answers -->
+        <form id="answerForm" onsubmit="submitForm(event)">
+            <label for="answer">Answer:</label>
+            <input type="text" id="answer" name="answer" required>
+            <button type="submit">Submit Answer</button>
+        </form>
+
+        <!-- Display submitted answers -->
+        <div id="submittedAnswersContainer"></div>
+    </main>
+    <footer>
+        <p>&copy; 2024 Your Teacher's Name</p>
+    </footer>
+    <script>
+        // Add this variable to store the live session status
+        let isSessionLive = false;
+    
+        const socket = new WebSocket('ws://localhost:3000');
+    
+        socket.addEventListener('message', event => {
+            const data = JSON.parse(event.data);
+    
+            if (data.type === 'submittedAnswer') {
+                updateSubmittedAnswers(data.data);
+            } else if (data.type === 'timerStatus') {
+                // Update the session status based on the server's response
+                isSessionLive = data.status === 'Live';
+            }
+        });
+    
+        function submitForm(event) {
+            event.preventDefault();
+    
+            // Check if the session is live
+            if (!isSessionLive) {
+                alert("Session is not live. You cannot submit answers.");
+                return;
+            }
+    
+            const answerInput = document.getElementById('answer');
+            const answer = answerInput.value;
+    
+            submitAnswers(answer);
+        }
+    
+        function submitAnswers(answer) {
+            const submitAnswerEndpoint = '/api/kids/submit-answer';
+    
+            fetch(submitAnswerEndpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ answer }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Answer submitted successfully:', data);
+            })
+            .catch(error => console.error('Error submitting answer:', error));
+        }
+    
+        function updateSubmittedAnswers(submittedAnswers) {
+        const submittedAnswersContainer = document.getElementById('submittedAnswersContainer');
+        submittedAnswersContainer.innerHTML = '';
+
+        if (submittedAnswers.length === 0) {
+            submittedAnswersContainer.innerHTML = '<p>No answers submitted yet.</p>';
+        } else {
+            const list = document.createElement('ul');
+            submittedAnswers.forEach(answer => {
+                const listItem = document.createElement('li');
+
+                // Check if the answer is an object, and extract the relevant information
+                const answerText = typeof answer === 'object' ? answer.answer : answer;
+
+                listItem.textContent = `Answer: ${answerText}`;
+                list.appendChild(listItem);
+            });
+            submittedAnswersContainer.appendChild(list);
+        }
+    }
+    </script>
+</body>
+</html>

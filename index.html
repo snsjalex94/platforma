@@ -1,0 +1,66 @@
+<!-- index.html -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="styles.css">
+    <title>Public Stats Page</title>
+</head>
+<body>
+    <header>
+        <h1>Public Stats Page</h1>
+    </header>
+    <main id="publicStatsContainer">
+        <!-- Display kids' answers and their status -->
+    </main>
+    <footer>
+        <p id="sessionStatus">Session: Not Live</p>
+        <p id="remainingTime"></p>
+        <p>&copy; 2024 Your Teacher's Name</p>
+    </footer>
+    <script>
+        function updatePublicStats(data) {
+            const publicStatsContainer = document.getElementById('publicStatsContainer');
+            publicStatsContainer.innerHTML = '';
+
+            if (data.length === 0) {
+                publicStatsContainer.innerHTML = '<p>No answers submitted yet.</p>';
+            } else {
+                const list = document.createElement('ul');
+                data.forEach(entry => {
+                    const listItem = document.createElement('li');
+                    listItem.textContent = `Kid: ${entry.kid}, Answer: ${entry.answer}, Status: ${entry.status}`;
+                    list.appendChild(listItem);
+                });
+                publicStatsContainer.appendChild(list);
+            }
+        }
+
+        function updateSessionStatus(status, remainingTime) {
+            const sessionStatus = document.getElementById('sessionStatus');
+            const remainingTimeElement = document.getElementById('remainingTime');
+
+            sessionStatus.textContent = `Session: ${status}`;
+            remainingTimeElement.textContent = `Remaining Time: ${remainingTime}`;
+        }
+
+        // Establish WebSocket connection
+        const socket = new WebSocket('ws://localhost:3000');
+
+        // Listen for messages from the server
+        socket.addEventListener('message', event => {
+            const data = JSON.parse(event.data);
+
+            if (data.type === 'update') {
+                // Display kids' answers and their status
+                updatePublicStats(data.data);
+            } else if (data.type === 'timerStatus') {
+                // Update session status and remaining time
+                updateSessionStatus(data.status, data.remainingTime);
+            }
+        });
+    </script>
+</body>
+</html>
